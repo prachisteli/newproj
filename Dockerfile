@@ -9,7 +9,7 @@ WORKDIR /var/www/html/
 RUN unzip spering.zip
 RUN pwd
 RUN ls -la
-RUN cp -rvf spering/* .
+RUN cp -rvf spering-html/* .
 RUN rm -rf spering spering.zip
 CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
 EXPOSE 80 22
