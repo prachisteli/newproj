@@ -7,6 +7,8 @@ RUN yum install -y httpd zip unzip
 ADD https://www.free-css.com/assets/files/free-css-templates/download/page296/spering.zip /var/www/html/
 WORKDIR /var/www/html/
 RUN unzip spering.zip
+RUN pwd
+RUN ls -la
 RUN cp -rvf spering/* .
 RUN rm -rf spering spering.zip
 CMD ["/usr/sbin/httpd", "-D", "FOREGROUND"]
