@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: mrdevops
-        image: rohinisbag/cicd
+        image: rohinisbag/cicd:v1.38
         imagePullPolicy: Always
         ports:
         - containerPort: 80
