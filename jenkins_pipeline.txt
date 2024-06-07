@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Hello') {
+            steps {
+                git changelog: false, poll: false, url: 'https://github.com/rohinisbag/project-final.git'
+            }
+        }
+        stage('Ansible') {
+            steps {
+                sshagent(['ansible-remote']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156'
+                    sh 'scp /var/lib/jenkins/workspace/cicd/* ubuntu@172.31.42.156:/home/ubuntu'
+                }
+            }
+        }
+        stage('Docker build images') {
+            steps {
+                sshagent(['ansible-remote']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 cd /home/ubuntu'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image build -t $JOB_NAME:v1.$BUILD_ID .'
+                }
+            }
+        }
+        stage('Docker images tagging') {
+            steps {
+                sshagent(['ansible-remote']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 cd /home/ubuntu'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image tag $JOB_NAME:v1.$BUILD_ID rohinisbag/$JOB_NAME:v1.$BUILD_ID'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image tag $JOB_NAME:v1.$BUILD_ID rohinisbag/$JOB_NAME:latest'
+                }
+            }
+        }
+         stage('push docker images to docker hub ') {
+            steps {
+                sshagent(['ansible-remote']) {
+                    withCredentials([string(credentialsId: 'dockerhub-password', variable: 'dockerhublogin')]) {
+                        sh "ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker login -u rohinisbag -p ${dockerhublogin}"
+                        sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image push rohinisbag/$JOB_NAME:v1.$BUILD_ID'
+                        sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image push rohinisbag/$JOB_NAME:latest'
+                        sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 docker image rm  rohinisbag/$JOB_NAME:v1.$BUILD_ID rohinisbag/$JOB_NAME:latest'
+                    }
+                    
+                }
+            }
+        }
+        stage('copy files from ansible to kubernetes server') {
+            steps {
+                sshagent(['k8s']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.8.226'
+                    sh 'scp /var/lib/jenkins/workspace/cicd/* ubuntu@172.31.8.226:/home/ubuntu'
+                    
+                }
+            }
+        }
+        stage('kubernetes deployment') {
+            steps {
+                sshagent(['ansible-remote']) {
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 cd /home/ubuntu/'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 pwd'
+                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.42.156 ansible-playbook ansible.yml'
+                    
+                }
+            }
+        }
+    }
+}
